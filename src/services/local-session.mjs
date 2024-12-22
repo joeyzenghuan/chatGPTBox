@@ -72,3 +72,18 @@ export const getSessions = async () => {
   if (sessions && sessions.length > 0) return sessions
   return await resetSessions()
 }
+
+export const renameSession = async (sessionId, newSessionName) => {
+  const currentSessions = await getSessions()
+  const sessionIndex = currentSessions.findIndex((session) => session.sessionId === sessionId)
+  
+  if (sessionIndex !== -1) {
+    currentSessions[sessionIndex].sessionName = newSessionName
+    currentSessions[sessionIndex].updatedAt = new Date().toISOString()
+    
+    await Browser.storage.local.set({ sessions: currentSessions })
+    return currentSessions
+  }
+  
+  return currentSessions
+}

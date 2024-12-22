@@ -160,5 +160,7 @@
   "Type": "Type",
   "Mode": "Mode",
   "Custom": "Custom",
-  "Crop Text to ensure the input tokens do not exceed the model's limit": "Crop Text to ensure the input tokens do not exceed the model's limit"
+  "Crop Text to ensure the input tokens do not exceed the model's limit": "Crop Text to ensure the input tokens do not exceed the model's limit",
+  "panel.rename": "Rename",
+  "panel.rename_session_prompt": "Please enter a new session name"
 }
