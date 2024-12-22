@@ -1,6 +1,5 @@
 import { getUserConfig } from '../../config/index.mjs'
 import { pushRecord, setAbortController } from './shared.mjs'
-import { getConversationPairs } from '../../utils/get-conversation-pairs.mjs'
 import { fetchSSE } from '../../utils/fetch-sse.mjs'
 import { isEmpty } from 'lodash-es'
 import { getModelValue } from '../../utils/model-name-convert.mjs'
@@ -16,11 +15,93 @@ export async function generateAnswersWithAzureOpenaiApi(port, question, session)
   let model = getModelValue(session)
   if (!model) model = config.azureDeploymentName
 
-  const prompt = getConversationPairs(
-    session.conversationRecords.slice(-config.maxConversationContextLength),
-    false,
+  const prompt = []
+  console.debug('session', session)
+
+  // 处理图片输入
+  const imageContent = session.imageContent ? session.imageContent : null
+  console.debug('imageContent', imageContent)
+
+  // 验证图片大小和类型
+  if (imageContent) {
+    try {
+      const base64Data = imageContent.split(',')[1]
+      const imageBuffer = Buffer.from(base64Data, 'base64')
+      const imageSize = imageBuffer.length / (1024 * 1024) // 转换为 MB
+
+      if (imageSize > 10) {
+        throw new Error('Image size exceeds 10 MB')
+      }
+    } catch (error) {
+      console.error('Image validation error:', error)
+      pushRecord(port, {
+        type: 'error',
+        content: `图片验证错误：${error.message}`,
+      })
+      return
+    }
+  }
+
+  // 添加历史对话记录（限制最大上下文长度，排除最后一条记录）
+  const historicalRecords = session.conversationRecords.slice(
+    -config.maxConversationContextLength,
+    -1, // 排除最后一条记录
   )
-  prompt.push({ role: 'user', content: question })
+
+  historicalRecords.forEach((record) => {
+    if (record.question || record.imageContent) {
+      prompt.push({
+        role: 'user',
+        content: record.imageContent
+          ? record.question
+            ? [
+                { type: 'text', text: record.question },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: record.imageContent,
+                    detail: config.imageDetail || 'auto',
+                  },
+                },
+              ]
+            : [
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: record.imageContent,
+                    detail: config.imageDetail || 'auto',
+                  },
+                },
+              ]
+          : record.question,
+      })
+    }
+    if (record.answer) {
+      prompt.push({ role: 'assistant', content: record.answer })
+    }
+  })
+  console.debug('prompt before adding current question', prompt)
+
+  // 添加当前问题
+  const messageContent = imageContent
+    ? [
+        { type: 'text', text: question },
+        {
+          type: 'image_url',
+          image_url: {
+            url: imageContent,
+            detail: config.imageDetail || 'auto',
+          },
+        },
+      ]
+    : question
+
+  prompt.push({
+    role: 'user',
+    content: imageContent ? messageContent : question,
+  })
+
+  console.debug('prompt!!!!!!', prompt)
 
   let answer = ''
   await fetchSSE(
@@ -62,7 +143,7 @@ export async function generateAnswersWithAzureOpenaiApi(port, question, session)
         }
 
         if (data.choices && data.choices.length > 0 && data.choices[0]?.finish_reason) {
-          pushRecord(session, question, answer)
+          pushRecord(session, question, answer, imageContent)
           console.debug('conversation history', { content: session.conversationRecords })
           port.postMessage({ answer: null, done: true, session: session })
         }

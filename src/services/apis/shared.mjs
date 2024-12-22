@@ -48,11 +48,27 @@ export function setAbortController(port, onStop, onDisconnect) {
   return { controller, cleanController, messageListener, disconnectListener }
 }
 
-export function pushRecord(session, question, answer) {
+export function pushRecord(session, question, answer, imageContent = null) {
   const recordLength = session.conversationRecords.length
-  let lastRecord
-  if (recordLength > 0) lastRecord = session.conversationRecords[recordLength - 1]
+  let lastRecord = recordLength > 0 ? session.conversationRecords[recordLength - 1] : null
 
-  if (session.isRetry && lastRecord && lastRecord.question === question) lastRecord.answer = answer
-  else session.conversationRecords.push({ question: question, answer: answer })
+  // 检查最后一条记录是否未完成（没有答案）
+  if (lastRecord && !lastRecord.answer) {
+    // 更新最后一条记录
+    lastRecord.answer = answer
+    lastRecord.imageContent = imageContent || lastRecord.imageContent
+  } else {
+    // 添加新记录
+    session.conversationRecords.push({
+      question: question,
+      answer: answer,
+      imageContent: imageContent,
+    })
+  }
+
+  // 限制历史记录长度
+  const maxRecords = 10 // 可以根据需要调整
+  if (session.conversationRecords.length > maxRecords) {
+    session.conversationRecords.splice(0, session.conversationRecords.length - maxRecords)
+  }
 }
