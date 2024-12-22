@@ -5,6 +5,7 @@ import {
   updateSession,
   getSession,
   deleteSession,
+  renameSession,
 } from '../../services/local-session.mjs'
 import { useEffect, useRef, useState } from 'react'
 import './styles.scss'
@@ -16,6 +17,11 @@ import DeleteButton from '../../components/DeleteButton'
 import { openUrl } from '../../utils/index.mjs'
 import Browser from 'webextension-polyfill'
 import FileSaver from 'file-saver'
+import { 
+  DeleteOutlined, 
+  EditOutlined 
+} from '@ant-design/icons'
+import { Button } from 'antd'
 
 function App() {
   const { t } = useTranslation()
@@ -28,6 +34,9 @@ function App() {
   const currentPort = useRef(null)
 
   const setSessionIdSafe = async (sessionId) => {
+    console.debug('Setting session ID:', sessionId)
+    console.debug('Current sessions:', sessions)
+    
     if (currentPort.current) {
       try {
         currentPort.current.postMessage({ stop: true })
@@ -37,9 +46,17 @@ function App() {
       }
       currentPort.current = null
     }
-    const { session, currentSessions } = await getSession(sessionId)
-    if (session) setSessionId(sessionId)
-    else if (currentSessions.length > 0) setSessionId(currentSessions[0].sessionId)
+    
+    try {
+      const { session, currentSessions } = await getSession(sessionId)
+      console.debug('Retrieved session:', session)
+      console.debug('Retrieved current sessions:', currentSessions)
+      
+      if (session) setSessionId(sessionId)
+      else if (currentSessions.length > 0) setSessionId(currentSessions[0].sessionId)
+    } catch (error) {
+      console.error('Error setting session ID:', error)
+    }
   }
 
   useEffect(() => {
@@ -103,6 +120,18 @@ function App() {
     await setSessionIdSafe(sessions[0].sessionId)
   }
 
+  const handleRenameSession = async (sessionId) => {
+    const newSessionName = prompt(t('panel.rename_session_prompt'))
+    if (newSessionName && newSessionName.trim()) {
+      try {
+        const updatedSessions = await renameSession(sessionId, newSessionName.trim())
+        setSessions(updatedSessions)
+      } catch (error) {
+        console.error('Failed to rename session:', error)
+      }
+    }
+  }
+
   return (
     <div className="IndependentPanel">
       <div className="chat-container">
@@ -125,28 +154,55 @@ function App() {
                 session,
                 index, // TODO editable session name
               ) => (
-                <button
-                  key={index}
-                  className={`normal-button ${sessionId === session.sessionId ? 'active' : ''}`}
-                  style="display: flex; align-items: center; justify-content: space-between;"
-                  onClick={() => {
-                    setSessionIdSafe(session.sessionId)
+                <div 
+                  key={index} 
+                  style={{
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    width: '100%'
                   }}
                 >
-                  {session.sessionName}
-                  <span className="gpt-util-group">
-                    <DeleteButton
-                      size={14}
-                      text={t('Delete Conversation')}
-                      onConfirm={() =>
-                        deleteSession(session.sessionId).then((sessions) => {
-                          setSessions(sessions)
-                          setSessionIdSafe(sessions[0].sessionId)
-                        })
-                      }
-                    />
-                  </span>
-                </button>
+                  <button
+                    className={`normal-button ${sessionId === session.sessionId ? 'active' : ''}`}
+                    style={{
+                      flex: 1,
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                    onClick={() => {
+                      setSessionIdSafe(session.sessionId)
+                    }}
+                  >
+                    {session.sessionName}
+                    <div style={{ marginLeft: 'auto' }}>
+                      <Button 
+                        size="small" 
+                        type="text" 
+                        icon={<EditOutlined />} 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRenameSession(session.sessionId)
+                        }}
+                      />
+                      <Button 
+                        size="small" 
+                        type="text" 
+                        danger 
+                        icon={<DeleteOutlined />} 
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteSession(session.sessionId).then((sessions) => {
+                            setSessions(sessions)
+                            setSessionIdSafe(sessions[0].sessionId)
+                          })
+                        }}
+                      />
+                    </div>
+                  </button>
+                </div>
               ),
             )}
           </div>
