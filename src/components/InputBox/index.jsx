@@ -3,10 +3,12 @@ import PropTypes from 'prop-types'
 import { isFirefox, isMobile, isSafari, updateRefHeight } from '../../utils'
 import { useTranslation } from 'react-i18next'
 import { getUserConfig } from '../../config/index.mjs'
+import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE_MB } from '../../utils/constants'
+import { compressImage } from '../../utils/image-utils'
 
-export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir }) {
+export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, initialValue = '' }) {
   const { t } = useTranslation()
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(initialValue)
   const [imageContent, setImageContent] = useState(null)
   const [imageError, setImageError] = useState(null)
   const reverseDivRef = useRef(null)
@@ -14,9 +16,6 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir }) {
   const fileInputRef = useRef(null)
   const resizedRef = useRef(false)
   const [internalReverseResizeDir, setInternalReverseResizeDir] = useState(reverseResizeDir)
-
-  const MAX_IMAGE_SIZE_MB = 10 // 最大图片大小
-  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
   useEffect(() => {
     setInternalReverseResizeDir(
@@ -59,18 +58,27 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir }) {
       })
   }, [enabled])
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0]
-    setImageError(null)
-
-    if (!file) return
-
-    // 检查文件类型
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError(t('Unsupported image type. Please upload JPEG, PNG, GIF, or WebP.'))
-      return
+  useEffect(() => {
+    const handlePaste = async (e) => {
+      const items = e.clipboardData.items
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile()
+          if (blob) {
+            await processImageFile(blob)
+            break // 只处理第一个图片
+          }
+        }
+      }
     }
 
+    window.addEventListener('paste', handlePaste)
+    return () => {
+      window.removeEventListener('paste', handlePaste)
+    }
+  }, [])
+
+  const processImageFile = async (file) => {
     // 检查文件大小
     const fileSizeMB = file.size / (1024 * 1024)
     if (fileSizeMB > MAX_IMAGE_SIZE_MB) {
@@ -80,40 +88,43 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir }) {
       return
     }
 
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      // 压缩图片
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        const maxWidth = 1024 // 最大宽度
-        const maxHeight = 1024 // 最大高度
-        let width = img.width
-        let height = img.height
-
-        if (width > maxWidth || height > maxHeight) {
-          const ratio = Math.min(maxWidth / width, maxHeight / height)
-          width *= ratio
-          height *= ratio
-        }
-
-        canvas.width = width
-        canvas.height = height
-        ctx.drawImage(img, 0, 0, width, height)
-
-        const compressedImageContent = canvas.toDataURL(file.type, 0.7)
-        setImageContent(compressedImageContent)
-      }
-      img.src = reader.result
+    // 检查文件类型
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImageError(t('Unsupported image type. Allowed types: {{types}}.', { 
+        types: ALLOWED_IMAGE_TYPES.join(', ') 
+      }))
+      return
     }
-    reader.readAsDataURL(file)
+
+    try {
+      const reader = new FileReader()
+      reader.onload = async (e) => {
+        const img = new Image()
+        img.onload = async () => {
+          setImageContent(e.target.result)
+          setImageError(null)
+        }
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      setImageError(t('Error processing image: {{error}}', { error: error.message }))
+    }
+  }
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    await processImageFile(file)
   }
 
   const handleRemoveImage = () => {
     setImageContent(null)
     setImageError(null)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '' // 重置文件输入
+    }
   }
 
   const handleKeyDownOrClick = (e) => {
