@@ -1,1 +1,4 @@
 src/services/clients/** linguist-vendored
+echo "* text=auto" >> .gitattributes
+echo "*.json text eol=lf" >> .gitattributes
+echo "*.mjs text eol=lf" >> .gitattributes

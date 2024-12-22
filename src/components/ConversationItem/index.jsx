@@ -16,9 +16,22 @@ AnswerTitle.propTypes = {
   descName: PropTypes.string,
 }
 
-export function ConversationItem({ type, content, descName, onRetry }) {
+export function ConversationItem({ type, content, descName, onRetry, imageContent }) {
   const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
+
+  const renderImageContent = () => {
+    if (!imageContent) return null
+    return (
+      <div className="conversation-image-preview">
+        <img
+          src={imageContent}
+          alt="Conversation Image"
+          style={{ maxWidth: '400px', maxHeight: '400px', margin: '10px 0' }}
+        />
+      </div>
+    )
+  }
 
   switch (type) {
     case 'question':
@@ -48,7 +61,12 @@ export function ConversationItem({ type, content, descName, onRetry }) {
               )}
             </div>
           </div>
-          {!collapsed && <MarkdownRender>{content}</MarkdownRender>}
+          {!collapsed && (
+            <>
+              <MarkdownRender>{content}</MarkdownRender>
+              {renderImageContent()}
+            </>
+          )}
         </div>
       )
     case 'answer':
@@ -85,7 +103,12 @@ export function ConversationItem({ type, content, descName, onRetry }) {
               )}
             </div>
           </div>
-          {!collapsed && <MarkdownRender>{content}</MarkdownRender>}
+          {!collapsed && (
+            <>
+              <MarkdownRender>{content}</MarkdownRender>
+              {renderImageContent()}
+            </>
+          )}
         </div>
       )
     case 'error':
@@ -119,7 +142,12 @@ export function ConversationItem({ type, content, descName, onRetry }) {
               )}
             </div>
           </div>
-          {!collapsed && <MarkdownRender>{content}</MarkdownRender>}
+          {!collapsed && (
+            <>
+              <MarkdownRender>{content}</MarkdownRender>
+              {renderImageContent()}
+            </>
+          )}
         </div>
       )
   }
@@ -130,6 +158,7 @@ ConversationItem.propTypes = {
   content: PropTypes.string.isRequired,
   descName: PropTypes.string,
   onRetry: PropTypes.func,
+  imageContent: PropTypes.string,
 }
 
 export default memo(ConversationItem)

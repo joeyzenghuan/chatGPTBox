@@ -238,6 +238,7 @@ export const Models = {
   ollamaModel: { value: '', desc: 'Ollama API' },
   azureOpenAi: { value: '', desc: 'ChatGPT (Azure)' },
   waylaidwandererApi: { value: '', desc: 'Waylaidwanderer API (Github)' },
+  // ... (rest of the code remains the same)
 
   poeAiWebSage: { value: 'Assistant', desc: 'Poe AI (Web, Assistant)' },
   poeAiWebGPT4: { value: 'gpt-4', desc: 'Poe AI (Web, GPT-4)' },
@@ -252,6 +253,7 @@ export const Models = {
   poeAiWebChatGpt: { value: 'chatgpt', desc: 'Poe AI (Web, ChatGPT)' },
   poeAiWebChatGpt_16k: { value: 'chatgpt-16k', desc: 'Poe AI (Web, ChatGPT-16k)' },
   poeAiWebCustom: { value: '', desc: 'Poe AI (Web, Custom)' },
+  // ... (rest of the code remains the same)
 
   moonshot_v1_8k: {
     value: 'moonshot-v1-8k',
@@ -346,6 +348,7 @@ export const defaultConfig = {
   inputQuery: '',
   appendQuery: '',
   prependQuery: '',
+  imageDetail: 'auto', // 添加图片详细程度配置
 
   // others
 

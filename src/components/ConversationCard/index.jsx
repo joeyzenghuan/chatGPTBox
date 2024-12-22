@@ -44,12 +44,14 @@ class ConversationItemData extends Object {
    * @param {'question'|'answer'|'error'} type
    * @param {string} content
    * @param {bool} done
+   * @param {string} imageContent
    */
-  constructor(type, content, done = false) {
+  constructor(type, content, done = false, imageContent = '') {
     super()
     this.type = type
     this.content = content
     this.done = done
+    this.imageContent = imageContent
   }
 }
 
@@ -83,7 +85,7 @@ function ConversationCard(props) {
     } else {
       const ret = []
       for (const record of session.conversationRecords) {
-        ret.push(new ConversationItemData('question', record.question, true))
+        ret.push(new ConversationItemData('question', record.question, true, record.imageContent))
         ret.push(new ConversationItemData('answer', record.answer, true))
       }
       setConversationItemData(ret)
@@ -335,6 +337,50 @@ function ConversationCard(props) {
 
   const retryFn = useMemo(() => getRetryFn(session), [session])
 
+  const handleSubmit = (input) => {
+    if (!input) return
+
+    const { text, image } = input
+    const question = text
+
+    const newSession = {
+      ...session,
+      question,
+      imageContent: image, // 添加图片内容
+      conversationRecords: [
+        ...session.conversationRecords,
+        {
+          question,
+          answer: '',
+          imageContent: image, // 在 conversationRecords 中也存储图片
+        },
+      ],
+    }
+
+    setSession(newSession)
+    setConversationItemData([
+      ...conversationItemData,
+      new ConversationItemData('question', question, true, image),
+      new ConversationItemData(
+        'answer',
+        `<p class="gpt-loading">${t(`Waiting for response...`)}</p>`,
+      ),
+    ])
+
+    setIsReady(false)
+    setTriggered(true)
+
+    if (useForegroundFetch) {
+      const handleForegroundFetch = async () => {
+        const accessToken = await getBingAccessToken()
+        await generateAnswersWithBingWebApi(port, question, newSession, accessToken)
+      }
+      handleForegroundFetch()
+    } else {
+      postMessage({ session: newSession })
+    }
+  }
+
   return (
     <div className="gpt-inner">
       <div
@@ -555,6 +601,7 @@ function ConversationCard(props) {
             key={idx}
             type={data.type}
             descName={data.type === 'answer' && session.aiName}
+            imageContent={data.imageContent}
             onRetry={idx === conversationItemData.length - 1 ? retryFn : null}
           />
         ))}
@@ -583,27 +630,7 @@ function ConversationCard(props) {
           enabled={isReady}
           postMessage={postMessage}
           reverseResizeDir={props.pageMode}
-          onSubmit={async (question) => {
-            const newQuestion = new ConversationItemData('question', question)
-            const newAnswer = new ConversationItemData(
-              'answer',
-              `<p class="gpt-loading">${t('Waiting for response...')}</p>`,
-            )
-            setConversationItemData([...conversationItemData, newQuestion, newAnswer])
-            setIsReady(false)
-
-            const newSession = { ...session, question, isRetry: false }
-            setSession(newSession)
-            try {
-              await postMessage({ session: newSession })
-            } catch (e) {
-              updateAnswer(e, false, 'error')
-            }
-            bodyRef.current.scrollTo({
-              top: bodyRef.current.scrollHeight,
-              behavior: 'instant',
-            })
-          }}
+          onSubmit={handleSubmit}
         />
       )}
     </div>
