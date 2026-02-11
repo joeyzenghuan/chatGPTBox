@@ -29,14 +29,18 @@ export function ConversationItem({
   const [reasoningCollapsed, setReasoningCollapsed] = useState(false)
 
   const renderImageContent = () => {
-    if (!imageContent) return null
+    const images = Array.isArray(imageContent) ? imageContent : imageContent ? [imageContent] : []
+    if (images.length === 0) return null
     return (
       <div className="conversation-image-preview">
-        <img
-          src={imageContent}
-          alt="Conversation Image"
-          style={{ maxWidth: '400px', maxHeight: '400px', margin: '10px 0' }}
-        />
+        {images.map((img, idx) => (
+          <img
+            key={idx}
+            src={img}
+            alt={`Conversation Image ${idx + 1}`}
+            style={{ maxWidth: '400px', maxHeight: '400px', margin: '10px 0' }}
+          />
+        ))}
       </div>
     )
   }
@@ -183,7 +187,7 @@ ConversationItem.propTypes = {
   content: PropTypes.string.isRequired,
   descName: PropTypes.string,
   onRetry: PropTypes.func,
-  imageContent: PropTypes.string,
+  imageContent: PropTypes.oneOfType([PropTypes.string, PropTypes.array]),
   reasoningSummary: PropTypes.string,
 }
 

@@ -44,15 +44,19 @@ class ConversationItemData extends Object {
    * @param {'question'|'answer'|'error'} type
    * @param {string} content
    * @param {bool} done
-   * @param {string} imageContent
+   * @param {string[]} imageContent
    * @param {string} reasoningSummary
    */
-  constructor(type, content, done = false, imageContent = '', reasoningSummary = '') {
+  constructor(type, content, done = false, imageContent = [], reasoningSummary = '') {
     super()
     this.type = type
     this.content = content
     this.done = done
-    this.imageContent = imageContent
+    this.imageContent = Array.isArray(imageContent)
+      ? imageContent
+      : imageContent
+      ? [imageContent]
+      : []
     this.reasoningSummary = reasoningSummary
   }
 }
@@ -87,7 +91,12 @@ function ConversationCard(props) {
     } else {
       const ret = []
       for (const record of session.conversationRecords) {
-        ret.push(new ConversationItemData('question', record.question, true, record.imageContent))
+        const imgContent = Array.isArray(record.imageContent)
+          ? record.imageContent
+          : record.imageContent
+          ? [record.imageContent]
+          : []
+        ret.push(new ConversationItemData('question', record.question, true, imgContent))
         ret.push(new ConversationItemData('answer', record.answer, true))
       }
       setConversationItemData(ret)
@@ -379,8 +388,8 @@ function ConversationCard(props) {
 
     if (useForegroundFetch) {
       const handleForegroundFetch = async () => {
-        const accessToken = await getBingAccessToken()
-        await generateAnswersWithBingWebApi(port, question, newSession, accessToken)
+        const bingToken = (await getUserConfig()).bingAccessToken
+        await generateAnswersWithBingWebApi(port, question, newSession, bingToken)
       }
       handleForegroundFetch()
     } else {

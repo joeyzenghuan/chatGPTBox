@@ -8,9 +8,25 @@ import { getModelValue } from '../../utils/model-name-convert.mjs'
  * Build the message prompt array from session history and current question.
  * Shared between Chat Completions and Responses API paths.
  */
-function buildAzurePrompt(session, question, config) {
+function normalizeImages(ic) {
+  return Array.isArray(ic) ? ic : ic ? [ic] : []
+}
+
+function makeTextPart(text, apiType) {
+  return apiType === 'responses' ? { type: 'input_text', text } : { type: 'text', text }
+}
+
+function makeImagePart(url, detail, apiType) {
+  if (apiType === 'responses') {
+    return { type: 'input_image', image_url: url, detail }
+  }
+  return { type: 'image_url', image_url: { url, detail } }
+}
+
+function buildAzurePrompt(session, question, config, apiType) {
   const prompt = []
-  const imageContent = session.imageContent ? session.imageContent : null
+  const imageContent = normalizeImages(session.imageContent)
+  const detail = config.imageDetail || 'auto'
 
   const historicalRecords = session.conversationRecords.slice(
     -config.maxConversationContextLength,
@@ -18,54 +34,33 @@ function buildAzurePrompt(session, question, config) {
   )
 
   historicalRecords.forEach((record) => {
-    if (record.question || record.imageContent) {
-      prompt.push({
-        role: 'user',
-        content: record.imageContent
-          ? record.question
-            ? [
-                { type: 'text', text: record.question },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: record.imageContent,
-                    detail: config.imageDetail || 'auto',
-                  },
-                },
-              ]
-            : [
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: record.imageContent,
-                    detail: config.imageDetail || 'auto',
-                  },
-                },
-              ]
-          : record.question,
-      })
+    const recordImages = normalizeImages(record.imageContent)
+    if (record.question || recordImages.length > 0) {
+      const content =
+        recordImages.length > 0
+          ? [
+              ...(record.question ? [makeTextPart(record.question, apiType)] : []),
+              ...recordImages.map((img) => makeImagePart(img, detail, apiType)),
+            ]
+          : record.question
+      prompt.push({ role: 'user', content })
     }
     if (record.answer) {
       prompt.push({ role: 'assistant', content: record.answer })
     }
   })
 
-  const messageContent = imageContent
-    ? [
-        { type: 'text', text: question },
-        {
-          type: 'image_url',
-          image_url: {
-            url: imageContent,
-            detail: config.imageDetail || 'auto',
-          },
-        },
-      ]
-    : question
+  const messageContent =
+    imageContent.length > 0
+      ? [
+          makeTextPart(question, apiType),
+          ...imageContent.map((img) => makeImagePart(img, detail, apiType)),
+        ]
+      : question
 
   prompt.push({
     role: 'user',
-    content: imageContent ? messageContent : question,
+    content: messageContent,
   })
 
   return { prompt, imageContent }
@@ -76,15 +71,18 @@ function buildAzurePrompt(session, question, config) {
  * @returns {string|null} error message or null if valid
  */
 function validateImageContent(imageContent) {
-  if (!imageContent) return null
-  try {
-    const base64Data = imageContent.split(',')[1]
-    const imageSize = (base64Data.length * 3) / 4 / (1024 * 1024)
-    if (imageSize > 10) {
-      return 'Image size exceeds 10 MB'
+  const images = normalizeImages(imageContent)
+  if (images.length === 0) return null
+  for (const img of images) {
+    try {
+      const base64Data = img.split(',')[1]
+      const imageSize = (base64Data.length * 3) / 4 / (1024 * 1024)
+      if (imageSize > 10) {
+        return 'Image size exceeds 10 MB'
+      }
+    } catch (error) {
+      return error.message
     }
-  } catch (error) {
-    return error.message
   }
   return null
 }
@@ -102,7 +100,7 @@ async function generateWithChatCompletions(
   messageListener,
   disconnectListener,
 ) {
-  const { prompt, imageContent } = buildAzurePrompt(session, question, config)
+  const { prompt, imageContent } = buildAzurePrompt(session, question, config, 'chat')
 
   const apiVersion = config.azureApiVersion || '2025-04-01-preview'
   const url = `${config.azureEndpoint.replace(
@@ -187,7 +185,7 @@ async function generateWithResponsesApi(
   messageListener,
   disconnectListener,
 ) {
-  const { prompt, imageContent } = buildAzurePrompt(session, question, config)
+  const { prompt, imageContent } = buildAzurePrompt(session, question, config, 'responses')
 
   const url = `${config.azureEndpoint.replace(/\/$/, '')}/openai/v1/responses`
   console.debug('Azure Responses API URL:', url)
@@ -282,7 +280,7 @@ export async function generateAnswersWithAzureOpenaiApi(port, question, session)
 
   console.debug('session', session)
 
-  const imageContent = session.imageContent ? session.imageContent : null
+  const imageContent = normalizeImages(session.imageContent)
   console.debug('imageContent', imageContent)
 
   const validationError = validateImageContent(imageContent)

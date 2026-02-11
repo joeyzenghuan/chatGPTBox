@@ -4,12 +4,11 @@ import { isFirefox, isMobile, isSafari, updateRefHeight } from '../../utils'
 import { useTranslation } from 'react-i18next'
 import { getUserConfig } from '../../config/index.mjs'
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE_MB } from '../../utils/constants'
-import { compressImage } from '../../utils/image-utils'
 
 export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, initialValue = '' }) {
   const { t } = useTranslation()
   const [value, setValue] = useState(initialValue)
-  const [imageContent, setImageContent] = useState(null)
+  const [imageContent, setImageContent] = useState([])
   const [imageError, setImageError] = useState(null)
   const reverseDivRef = useRef(null)
   const inputRef = useRef(null)
@@ -66,7 +65,6 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, ini
           const blob = items[i].getAsFile()
           if (blob) {
             await processImageFile(blob)
-            break // 只处理第一个图片
           }
         }
       }
@@ -90,9 +88,11 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, ini
 
     // 检查文件类型
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError(t('Unsupported image type. Allowed types: {{types}}.', { 
-        types: ALLOWED_IMAGE_TYPES.join(', ') 
-      }))
+      setImageError(
+        t('Unsupported image type. Allowed types: {{types}}.', {
+          types: ALLOWED_IMAGE_TYPES.join(', '),
+        }),
+      )
       return
     }
 
@@ -101,7 +101,7 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, ini
       reader.onload = async (e) => {
         const img = new Image()
         img.onload = async () => {
-          setImageContent(e.target.result)
+          setImageContent((prev) => [...prev, e.target.result])
           setImageError(null)
         }
         img.src = e.target.result
@@ -119,8 +119,8 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, ini
     await processImageFile(file)
   }
 
-  const handleRemoveImage = () => {
-    setImageContent(null)
+  const handleRemoveImage = (index) => {
+    setImageContent((prev) => prev.filter((_, i) => i !== index))
     setImageError(null)
     if (fileInputRef.current) {
       fileInputRef.current.value = '' // 重置文件输入
@@ -132,10 +132,10 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, ini
     if (e.type === 'click' || (e.keyCode === 13 && e.shiftKey === false)) {
       e.preventDefault()
       if (enabled) {
-        if (!value && !imageContent) return
+        if (!value && imageContent.length === 0) return
         onSubmit({ text: value, image: imageContent }) // 传递图片内容
         setValue('')
-        setImageContent(null)
+        setImageContent([])
         setImageError(null)
         if (fileInputRef.current) fileInputRef.current.value = ''
       } else {
@@ -176,16 +176,24 @@ export function InputBox({ onSubmit, enabled, postMessage, reverseResizeDir, ini
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDownOrClick}
         />
-        {imageContent && (
-          <div className="image-preview">
-            <img
-              src={imageContent}
-              alt="Upload Preview"
-              style={{ maxWidth: '200px', maxHeight: '200px', margin: '10px 0' }}
-            />
-            <button onClick={handleRemoveImage} className="remove-image-btn">
-              {t('Remove Image')}
-            </button>
+        {imageContent.length > 0 && (
+          <div className="image-preview" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {imageContent.map((img, idx) => (
+              <div key={idx} style={{ position: 'relative', display: 'inline-block' }}>
+                <img
+                  src={img}
+                  alt={`Upload Preview ${idx + 1}`}
+                  style={{ maxWidth: '200px', maxHeight: '200px', margin: '10px 0' }}
+                />
+                <button
+                  onClick={() => handleRemoveImage(idx)}
+                  className="remove-image-btn"
+                  style={{ display: 'block' }}
+                >
+                  {t('Remove Image')}
+                </button>
+              </div>
+            ))}
           </div>
         )}
         {imageError && (
@@ -224,6 +232,7 @@ InputBox.propTypes = {
   enabled: PropTypes.bool.isRequired,
   reverseResizeDir: PropTypes.bool,
   postMessage: PropTypes.func.isRequired,
+  initialValue: PropTypes.string,
 }
 
 export default InputBox
