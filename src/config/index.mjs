@@ -510,6 +510,11 @@ export const defaultConfig = {
   azureApiKey: '',
   azureEndpoint: '',
   azureDeploymentName: '',
+  azureApiType: 'chatCompletions',
+  azureApiVersion: '2025-04-01-preview',
+  azureIsReasoningModel: false,
+  azureReasoningEffort: 'medium',
+  azureShowReasoningSummary: false,
 
   poeCustomBotName: '',
 

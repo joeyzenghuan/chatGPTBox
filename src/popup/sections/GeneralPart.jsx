@@ -275,16 +275,19 @@ export function GeneralPart({ config, updateConfig, setTabIndex }) {
             />
           )}
           {isUsingAzureOpenAiApiModel(config) && (
-            <input
-              type="password"
-              style="width: 50%;"
-              value={config.azureApiKey}
-              placeholder={t('Azure API Key')}
-              onChange={(e) => {
-                const apiKey = e.target.value
-                updateConfig({ azureApiKey: apiKey })
-              }}
-            />
+            <span style="width: 50%; display: flex; gap: 5px; align-items: center;">
+              <span style="white-space: nowrap; font-size: 12px;">{t('API Key')}:</span>
+              <input
+                type="password"
+                style="flex-grow: 1;"
+                value={config.azureApiKey}
+                placeholder={t('Azure API Key')}
+                onChange={(e) => {
+                  const apiKey = e.target.value
+                  updateConfig({ azureApiKey: apiKey })
+                }}
+              />
+            </span>
           )}
           {isUsingClaudeApiModel(config) && (
             <input
@@ -453,15 +456,86 @@ export function GeneralPart({ config, updateConfig, setTabIndex }) {
           />
         )}
         {isUsingAzureOpenAiApiModel(config) && (
-          <input
-            type="password"
-            value={config.azureEndpoint}
-            placeholder={t('Azure Endpoint')}
-            onChange={(e) => {
-              const endpoint = e.target.value
-              updateConfig({ azureEndpoint: endpoint })
-            }}
-          />
+          <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+            <span style={{ whiteSpace: 'nowrap', fontSize: '12px' }}>{t('Endpoint')}:</span>
+            <input
+              type="text"
+              style={{ flexGrow: 1 }}
+              value={config.azureEndpoint}
+              placeholder={t('Azure Endpoint')}
+              onChange={(e) => {
+                const endpoint = e.target.value
+                updateConfig({ azureEndpoint: endpoint })
+              }}
+            />
+          </div>
+        )}
+        {isUsingAzureOpenAiApiModel(config) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {t('API Type') + ':'}
+              <select
+                style={{ flexGrow: 1 }}
+                value={config.azureApiType}
+                onChange={(e) => {
+                  updateConfig({ azureApiType: e.target.value })
+                }}
+              >
+                <option value="chatCompletions">{t('Chat Completions')}</option>
+                <option value="responses">{t('Responses API')}</option>
+              </select>
+            </div>
+            {config.azureApiType === 'chatCompletions' && (
+              <input
+                type="text"
+                value={config.azureApiVersion}
+                placeholder={t('API Version')}
+                onChange={(e) => {
+                  updateConfig({ azureApiVersion: e.target.value })
+                }}
+              />
+            )}
+            <label>
+              <input
+                type="checkbox"
+                checked={config.azureIsReasoningModel}
+                onChange={(e) => {
+                  updateConfig({ azureIsReasoningModel: e.target.checked })
+                }}
+              />
+              {t('Reasoning Model')}
+            </label>
+            {config.azureIsReasoningModel && (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {t('Reasoning Effort') + ':'}
+                <select
+                  style={{ flexGrow: 1 }}
+                  value={config.azureReasoningEffort}
+                  onChange={(e) => {
+                    updateConfig({ azureReasoningEffort: e.target.value })
+                  }}
+                >
+                  <option value="none">none</option>
+                  <option value="minimal">minimal</option>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </div>
+            )}
+            {config.azureIsReasoningModel && config.azureApiType === 'responses' && (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={config.azureShowReasoningSummary}
+                  onChange={(e) => {
+                    updateConfig({ azureShowReasoningSummary: e.target.checked })
+                  }}
+                />
+                {t('Show Reasoning Summary')}
+              </label>
+            )}
+          </div>
         )}
         {isUsingGithubThirdPartyApiModel(config) && (
           <input

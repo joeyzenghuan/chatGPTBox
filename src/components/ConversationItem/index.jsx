@@ -16,9 +16,17 @@ AnswerTitle.propTypes = {
   descName: PropTypes.string,
 }
 
-export function ConversationItem({ type, content, descName, onRetry, imageContent }) {
+export function ConversationItem({
+  type,
+  content,
+  descName,
+  onRetry,
+  imageContent,
+  reasoningSummary,
+}) {
   const { t } = useTranslation()
   const [collapsed, setCollapsed] = useState(false)
+  const [reasoningCollapsed, setReasoningCollapsed] = useState(false)
 
   const renderImageContent = () => {
     if (!imageContent) return null
@@ -105,6 +113,23 @@ export function ConversationItem({ type, content, descName, onRetry, imageConten
           </div>
           {!collapsed && (
             <>
+              {reasoningSummary && (
+                <div className="chatgptbox-reasoning-summary">
+                  <div
+                    className="reasoning-header"
+                    onClick={() => setReasoningCollapsed(!reasoningCollapsed)}
+                  >
+                    <span>
+                      {reasoningCollapsed ? '\u25B6' : '\u25BC'} {t('Reasoning')}
+                    </span>
+                  </div>
+                  {!reasoningCollapsed && (
+                    <div className="reasoning-content">
+                      <MarkdownRender>{reasoningSummary}</MarkdownRender>
+                    </div>
+                  )}
+                </div>
+              )}
               <MarkdownRender>{content}</MarkdownRender>
               {renderImageContent()}
             </>
@@ -159,6 +184,7 @@ ConversationItem.propTypes = {
   descName: PropTypes.string,
   onRetry: PropTypes.func,
   imageContent: PropTypes.string,
+  reasoningSummary: PropTypes.string,
 }
 
 export default memo(ConversationItem)

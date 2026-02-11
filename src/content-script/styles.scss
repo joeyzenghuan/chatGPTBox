@@ -1338,6 +1338,28 @@
     }
   }
 
+  .chatgptbox-reasoning-summary {
+    margin-bottom: 8px;
+    border-left: 3px solid var(--theme-border-color);
+    padding-left: 12px;
+
+    .reasoning-header {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--font-color);
+      user-select: none;
+      padding: 4px 0;
+      opacity: 0.7;
+    }
+
+    .reasoning-content {
+      font-size: 14px;
+      opacity: 0.85;
+      padding-bottom: 8px;
+    }
+  }
+
   .chatgptbox-error {
     p {
       color: #ec4336;

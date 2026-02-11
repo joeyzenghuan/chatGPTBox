@@ -45,13 +45,15 @@ class ConversationItemData extends Object {
    * @param {string} content
    * @param {bool} done
    * @param {string} imageContent
+   * @param {string} reasoningSummary
    */
-  constructor(type, content, done = false, imageContent = '') {
+  constructor(type, content, done = false, imageContent = '', reasoningSummary = '') {
     super()
     this.type = type
     this.content = content
     this.done = done
     this.imageContent = imageContent
+    this.reasoningSummary = reasoningSummary
   }
 }
 
@@ -137,7 +139,7 @@ function ConversationCard(props) {
    * @param {'question'|'answer'|'error'} newType
    * @param {boolean} done
    */
-  const updateAnswer = (value, appended, newType, done = false) => {
+  const updateAnswer = (value, appended, newType, done = false, reasoningSummary = undefined) => {
     setConversationItemData((old) => {
       const copy = [...old]
       const index = findLastIndex(copy, (v) => v.type === 'answer' || v.type === 'error')
@@ -147,20 +149,25 @@ function ConversationCard(props) {
         appended ? copy[index].content + value : value,
       )
       copy[index].done = done
+      if (reasoningSummary !== undefined) {
+        copy[index].reasoningSummary = reasoningSummary
+      } else {
+        copy[index].reasoningSummary = old[index].reasoningSummary || ''
+      }
       return copy
     })
   }
 
   const portMessageListener = (msg) => {
     if (msg.answer) {
-      updateAnswer(msg.answer, false, 'answer')
+      updateAnswer(msg.answer, false, 'answer', false, msg.reasoningSummary)
     }
     if (msg.session) {
       if (msg.done) msg.session = { ...msg.session, isRetry: false }
       setSession(msg.session)
     }
     if (msg.done) {
-      updateAnswer('', true, 'answer', true)
+      updateAnswer('', true, 'answer', true, msg.reasoningSummary)
       setIsReady(true)
     }
     if (msg.error) {
@@ -602,6 +609,7 @@ function ConversationCard(props) {
             type={data.type}
             descName={data.type === 'answer' && session.aiName}
             imageContent={data.imageContent}
+            reasoningSummary={data.reasoningSummary}
             onRetry={idx === conversationItemData.length - 1 ? retryFn : null}
           />
         ))}
